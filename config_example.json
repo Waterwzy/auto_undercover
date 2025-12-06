@@ -1,0 +1,6 @@
+{
+    "llm_config": [
+        {"model" : "model" , "url" : "url" ,"key" : "key"}
+        
+    ]
+}
