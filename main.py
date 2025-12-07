@@ -21,6 +21,8 @@ class GameManager () :
         self.player_info = []
         self.undercover_word = None
         self.normal_word = None
+        self.now_speak_player = []
+        self.devote_list = []
         pass
 
     def check_config(self) :
@@ -121,6 +123,70 @@ class GameManager () :
             else :
                 player.word = self.normal_word
         return
+        
+    def create_speak_message(self , index , round ) :
+        message_str = f"【发言阶段】\n现在是**第{round}轮**\n[本轮发言玩家有]\n"
+        for i in self.now_speak_player :
+            message_str += str(i) 
+            if i != self.now_speak_player[-1] :
+                message_str += ','
+        message_str += '\n[本轮已经发言的玩家有]\n'
+        for i in range (0 , index ) :
+            if i not in self.now_speak_player :
+                continue
+            message_str += f"玩家{i}:" + self.player_info[i].message[-1] + '\n'
+        message_str += '[现在轮到你发言]'
+        return message_str
+    
+    async def speak_loop( self ,round ) :
+        for player in self.now_speak_player :
+            play_str = self.create_speak_message( player , round )
+            self.player_info[player].message.append({"role":"user","content":play_str})
+            result = await self.send_message( self.player_info[player].message , player )
+            if result == None :
+                sys.exit()
+            print(f"player{player}描述词语：{result['choices'][0]['message']['content']}")
+            self.player_info[player].message.append(result['choices'][0]['message'])
+        return
+    
+    def round_end(self) :
+        if self.devote_list == [] :
+            return None
+        repeat_list = [0] * self.player
+        for devoter in self.devote_list :
+            repeat_list[devoter] += 1
+        max_num = 0
+        re_speak = []
+        for i,devotee in enumerate(repeat_list) :
+            if devotee == max_num :
+                re_speak.append(i)
+            if devotee > max_num :
+                max_num = devotee
+                re_speak = [i]
+        if len(re_speak) == 1 :
+            return re_speak[0]
+        return re_speak
+
+    
+    def is_win(self) :
+        alive_undercover = 0
+        alive_normal = 0
+        for player in self.player_info :
+            if player.is_alive :
+                if player.is_undercover :
+                    alive_undercover += 1
+                else :
+                    alive_normal += 1
+        #返回为1，平民胜利，2为间谍胜利，None为目前无胜利
+        if alive_undercover == 0 :
+            return 1
+        if alive_undercover >= alive_normal :
+            return 2
+        return None
+    
+    def devote_stage (self) :
+        
+        return
 
     async def main(self) :
         random.seed ( time.time( ) )
@@ -128,7 +194,7 @@ class GameManager () :
             print("数据文件异常！程序退出")
             sys.exit()
         self.normal_word = input("平民词语：")
-        self.unercover_word = input("间谍词语：")
+        self.undercover_word = input("间谍词语：")
         self.undercover_player = int ( input("间谍数量：" ) ) 
         self.create_undercover()
         for i,player in enumerate(self.player_info) :
@@ -141,7 +207,26 @@ class GameManager () :
             player.message.append(result['choices'][0]['message'])
             print(f"player:{i} is ok!")
         #game started!
-        
+        round = 1
+        while self.is_win() == None :
+            out_player = 0
+            self.devote_list = []
+            while True :
+                re_speak = self.round_end()
+                if re_speak != None and isinstance(re_speak , int) :
+                    self.player_info[re_speak].is_alive = False
+                    out_player = re_speak
+                    break
+                if re_speak == None :
+                    re_speak = []
+                    for i,player in enumerate(self.player_info) :
+                        if player.is_alive :
+                            re_speak.append(i)
+                self.now_speak_player = re_speak
+                re_speak.sort()
+                await self.speak_loop()
+
+            
         
 async def main () :
     gamer = GameManager()
