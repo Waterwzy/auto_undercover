@@ -11,7 +11,11 @@ git clone https://github.com/Waterwzy/auto_undercover.git
 cd auto_undercover
 ```
 
-## 1.文件配置
+推荐python版本：
+
+`3.12.10`
+
+# 1.文件配置
 
 文件 `config_example.json` 中提供了配置示例，具体来说：
 
