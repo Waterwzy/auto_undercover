@@ -66,24 +66,35 @@ class GameManager () :
             dataset = json . load(f)
             return dataset
 
-    def create_prompt(self, index) :
-            llm_prompt = [
-                "**任务**：完成**谁是间谍**的游戏。",
-                "**目标**：你是两个身份：**间谍**或者**平民**的其中一个，在游戏开始时，你并不知道自己的身份，你的目标是通过投票**淘汰与自己不同阵营的人**，取得胜利。",
-                "**游戏过程**：在游戏开始，你会收到一个词语，**间谍与平民的不同之处在于收到的词语不同**，每轮游戏分为两个阶段：",
-                "1. 阶段一**【发言阶段】**：在这个阶段，玩家将**按照编号依次发言，用一句与你收到的词语相关的话进行发言，但不能直接说出词语本身；并且通过其他玩家的发言找到与自己不同的玩家**",
-                "2. 阶段二**【投票阶段】**：在这个阶段，玩家将**根据发言内容进行投票，每个玩家仅限投一票。得票最多的人出局**；当出现平票时，票数相同的玩家继续轮流发言并且投票，直到出局一人为止。",
-                "**输入格式**：每次输入都会以【发言阶段】或者【投票阶段】开头，并详细阐述当前场上状况，其中：",
-                "- 当输入为【发言阶段】时，你需要用**一句话描述你获得的词语**，并且直接输出，**不允许输出其他任何内容**",
-                "- 当输入为【投票阶段】时，你需要**输出一个数字**，表明你要投票的玩家编号，**不允许输出包括其他文字或者标点符号在内的任何内容**",
-                f"**玩家配置**：共计{self.player}名玩家，各自拥有从1-6的编号。其中{self.player - self.undercover_player}位平民，{self.undercover_player}位间谍",
-                "**胜利条件**：当平民和间谍的任意一方达到胜利条件后，相关阵营胜利，游戏结束",
-                "- 平民胜利条件：**所有**间谍出局",
-                "- 间谍胜利条件：未出局的平民人数**小于或等于**未出局的间谍人数",
-                "当你了解以上规则后，请输出“确认”，**不要输出其他字符**，以下是你的相关信息，游戏即将开始",
-                f"你的词语是{self.player_info[index].word}，你的编号是{index}"
-            ]
-            return '\n'.join(llm_prompt)
+    def create_prompt(self, index):
+        llm_prompt = [
+            "**任务**：参与《谁是间谍》游戏。",
+            "**身份**：你可能是**间谍**或**平民**，游戏开始时未知。",
+            "**目标**：通过发言和投票淘汰敌对阵营成员，为本阵营争取胜利。",
+            "**游戏流程**：",
+            "1. 【发言阶段】：按编号发言，用一句话暗示你的词语，**不能直接说出词语**。",
+            "2. 【投票阶段】：根据发言投票，得票最多者出局。平票则继续发言再投。",
+            "**发言策略**：",
+            "- **必须使用模糊、模棱两可的描述**，避免透露明确信息。",
+            "- **鼓励猜测对方词语**，并在发言中故意误导他人。",
+            "- **间谍应伪装成平民**，平民应隐藏真实词语，同时试探他人。",
+            "- **发言应简短、具有误导性**，一句话即可，不要解释。",
+            "**输入格式**：",
+            "- 当输入以【发言阶段】开头时，你只需输出**一句话**（不含标点以外的内容）。",
+            "- 当输入以【投票阶段】开头时，你只需输出**一个数字**（投票对象编号）。",
+            "**注意事项**：",
+            "- **欺骗、误导、模糊表达**是游戏的核心策略，不被视为违规。",
+            "- 不要承认自己是间谍，也不要直接问他人身份。",
+            "- 尽量从他人的发言中寻找矛盾点。",
+            "**发言要求**：避免重复他人已用过的描述角度或表达方式。尽量从新颖的角度暗示你的词语。",
+            f"**玩家配置**：共{self.player}人，{self.player - self.undercover_player}平民，{self.undercover_player}间谍。",
+            "**胜利条件**：",
+            "- 平民胜：所有间谍出局。",
+            "- 间谍胜：存活平民 ≤ 存活间谍。",
+            "请回复“确认”以开始游戏。",
+            f"你的词语是：{self.player_info[index].word}，你的编号是：{index}"
+        ]
+        return '\n'.join(llm_prompt)
 
     async def send_message(self , message , index ) :
         async with aiohttp.ClientSession() as session :
@@ -116,6 +127,7 @@ class GameManager () :
         for i in range (0 , self.player) :
             self.player_info.append(Player())
         undercovers = random.sample( range( 0 , self.player ) , self.undercover_player )
+        print(f"undercover list:{undercovers}")
         for i,player in enumerate(self.player_info) :
             if i in undercovers :
                 player.is_undercover = True
@@ -134,7 +146,7 @@ class GameManager () :
         for i in range (0 , index ) :
             if i not in self.now_speak_player :
                 continue
-            message_str += f"玩家{i}:" + self.player_info[i].message[-1] + '\n'
+            message_str += f"玩家{i}:" + self.player_info[i].message[-1]['content'] + '\n'
         message_str += '[现在轮到你发言]'
         return message_str
     
@@ -184,8 +196,38 @@ class GameManager () :
             return 2
         return None
     
-    def devote_stage (self) :
-        
+    def devote_message( self ) :
+        msg_str = '【投票阶段】\n本轮发言玩家有：'
+        for player in self.now_speak_player :
+            msg_str += str(player)
+            if player != self.now_speak_player[-1] :
+                msg_str += ','
+        msg_str += "\n这些玩家的发言如下：\n"
+        for player in self.now_speak_player :
+            msg_str += f"编号{player}:{self.player_info[player].message[-1]['content']}\n"
+        msg_str += "请投票给一位玩家，**仅输出你选择的玩家编号**。"
+        return msg_str
+    
+    def is_int (self , mystr ) :
+        try :
+            int(mystr)
+        except ValueError :
+            return False
+        return True
+
+    async def devote_stage (self) :
+        mssage = self.devote_message()
+        for i,player in enumerate(self.player_info) :
+            if player.is_alive == False :
+                continue
+            player.message.append({"role":"user","content":mssage})
+            rusult = await self.send_message(player.message , i)
+            if rusult == None :
+                sys.exit()
+            devote = rusult['choices'][0]['message']['content'].strip()
+            if self.is_int(devote) and int(devote) in self.now_speak_player :
+                self.devote_list.append(int(devote))
+            player.message.append(rusult['choices'][0]['message'])
         return
 
     async def main(self) :
@@ -209,6 +251,7 @@ class GameManager () :
         #game started!
         round = 1
         while self.is_win() == None :
+            print(f"---第{round}轮次开始---")
             out_player = 0
             self.devote_list = []
             while True :
@@ -222,10 +265,19 @@ class GameManager () :
                     for i,player in enumerate(self.player_info) :
                         if player.is_alive :
                             re_speak.append(i)
-                self.now_speak_player = re_speak
                 re_speak.sort()
-                await self.speak_loop()
-
+                self.now_speak_player = re_speak
+                print(f"本轮发言人：{self.now_speak_player}")
+                await self.speak_loop(round)
+                self.devote_list = []
+                await self.devote_stage()
+            print(f"player{out_player}被淘汰！")
+            round += 1
+        if self.is_win() == 1 :
+            print("平民胜利！")
+        else :
+            print("间谍胜利！")
+        sys.exit()
             
         
 async def main () :
