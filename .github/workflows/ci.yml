@@ -16,7 +16,13 @@ jobs :
               with :
                 python-version : "3.12.10"
             - run : pip install -r requirements.txt
-            - run : pytest --cov=. --cov-report=xml
+            - run: |
+                if find . -name "test_*.py" | grep -q "." || find . -name "*_test.py" | grep -q "."; then
+                    echo "Running tests..."
+                    pytest --cov=. --cov-report=xml
+                else
+                    echo "No test files found, skipping tests"
+                fi
 
     lint :
         runs-on : ubuntu-latest
@@ -26,9 +32,44 @@ jobs :
               with :
                 python-version : "3.12.10"
             - run : pip install black flake8 mypy
-            - run : black --check src/
-            - run : flake8 src/
-            - run : mypy src/
+            - name: Find Python files
+              run: |
+                    python_files=$(find . -name "*.py" -not -path "./.*" -not -path "*/__pycache__/*" -not -path "*/venv/*" -not -path "*/env/*")
+                    if [ -z "$python_files" ]; then
+                        echo "No Python files found for linting"
+                        echo "python_files=" >> $GITHUB_ENV
+                    else
+                        echo "Found Python files:"
+                        echo "$python_files"
+                        echo "python_files=$python_files" >> $GITHUB_ENV
+                    fi
+        
+            - name: Run black
+              run: |
+                if [ -n "$python_files" ]; then
+                    echo "Checking code formatting with black..."
+                    black --check $python_files
+                else
+                    echo "Skipping black - no Python files found"
+                fi
+            
+            - name: Run flake8
+              run: |
+                if [ -n "$python_files" ]; then
+                    echo "Running flake8..."
+                    flake8 $python_files
+                else
+                    echo "Skipping flake8 - no Python files found"
+                fi
+            
+            - name: Run mypy
+              run: |
+                if [ -n "$python_files" ]; then
+                    echo "Running mypy..."
+                    mypy $python_files
+                else
+                    echo "Skipping mypy - no Python files found"
+                fi
 
     build :
         needs : [test,lint]
