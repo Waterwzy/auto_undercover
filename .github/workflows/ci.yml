@@ -31,7 +31,7 @@ jobs :
             - uses : actions/setup-python@v4
               with :
                 python-version : "3.12.10"
-            - run : pip install -r black flake8 mypy requirements.txt
+            - run : pip install black flake8 mypy -r requirements.txt
             - name: Find Python files
               run: |
                     python_files=$(find . -name "*.py" -not -path "./.*" -not -path "*/__pycache__/*" -not -path "*/venv/*" -not -path "*/env/*")
@@ -82,7 +82,7 @@ jobs :
             - uses : actions/setup-python@v4
               with :
                 python-version : "3.12.10"
-            - run : pip install -r requirements.txt pyinstaller
+            - run : pip install pyinstaller -r requirements.txt 
             - run : pyinstaller --onefile main.py
             - uses : actions/upload-artifact@v3
               with :
