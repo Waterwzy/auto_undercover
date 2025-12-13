@@ -93,7 +93,13 @@ class GameManager:
             "- 不要承认自己是间谍，也不要直接问他人身份。",
             "- 尽量从他人的发言中寻找矛盾点。",
             "**发言要求**：避免重复他人已用过的描述角度或表达方式。尽量从新颖的角度暗示你的词语。",
-            f"**玩家配置**：共{self.player}人，{self.player - self.undercover_player}平民，{self.undercover_player}间谍。",
+            f"**玩家配置**：共{
+                self.player
+                }人，{
+                self.player - self.undercover_player
+                }平民，{
+                self.undercover_player
+                }间谍。",
             "**胜利条件**：",
             "- 平民胜：所有间谍出局。",
             "- 间谍胜：存活平民 ≤ 存活间谍。",
@@ -160,10 +166,14 @@ class GameManager:
                 {"role": "user", "content": play_str}
             )
             result = await self.send_message(self.player_info[player].message, player)
-            if result == None:
+            if result is None:
                 sys.exit()
             print(
-                f"player{player}描述词语：{result['choices'][0]['message']['content']}"
+                f"player{
+                    player
+                }描述词语：{
+                    result['choices'][0]['message']['content']
+                }"
             )
             self.player_info[player].message.append(result["choices"][0]["message"])
         return
@@ -210,9 +220,11 @@ class GameManager:
                 msg_str += ","
         msg_str += "\n这些玩家的发言如下：\n"
         for player in self.now_speak_player:
-            msg_str += (
-                f"编号{player}:{self.player_info[player].message[-1]['content']}\n"
-            )
+            msg_str += f"编号{
+                    player
+                }:{
+                    self.player_info[player].message[-1]['content']
+                }\n"
         msg_str += "请投票给一位玩家，**仅输出你选择的玩家编号**。"
         return msg_str
 
@@ -226,11 +238,11 @@ class GameManager:
     async def devote_stage(self):
         mssage = self.devote_message()
         for i, player in enumerate(self.player_info):
-            if player.is_alive == False:
+            if player.is_alive is False:
                 continue
             player.message.append({"role": "user", "content": mssage})
             rusult = await self.send_message(player.message, i)
-            if rusult == None:
+            if rusult is None:
                 sys.exit()
             devote = rusult["choices"][0]["message"]["content"].strip()
             if self.is_int(devote) and int(devote) in self.now_speak_player:
@@ -250,7 +262,7 @@ class GameManager:
         for i, player in enumerate(self.player_info):
             player.message.append({"role": "system", "content": self.create_prompt(i)})
             result = await self.send_message(player.message, i)
-            if result == None:
+            if result is None:
                 sys.exit()
             if result["choices"][0]["message"]["content"] != "确认":
                 sys.exit()
@@ -258,17 +270,17 @@ class GameManager:
             print(f"player:{i} is ok!")
         # game started!
         round = 1
-        while self.is_win() == None:
+        while self.is_win() is None:
             print(f"---第{round}轮次开始---")
             out_player = 0
             self.devote_list = []
             while True:
                 re_speak = self.round_end()
-                if re_speak != None and isinstance(re_speak, int):
+                if re_speak is not None and isinstance(re_speak, int):
                     self.player_info[re_speak].is_alive = False
                     out_player = re_speak
                     break
-                if re_speak == None:
+                if re_speak is None:
                     re_speak = []
                     for i, player in enumerate(self.player_info):
                         if player.is_alive:
